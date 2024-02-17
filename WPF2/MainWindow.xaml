@@ -1,0 +1,192 @@
+﻿<Window x:Class="WPF2.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:WPF2"
+        mc:Ignorable="d"
+        Title="Subtitle Composer" Height="800" Width="1280"
+        MinHeight="480" MinWidth="640"
+        WindowStartupLocation="CenterScreen">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+        <local:TimeSpanToStringConverter x:Key="TimeSpanToStringConverter"/>
+        <local:BooleanToWidthConverter x:Key="BooleanToWidthConverter"/>
+        <local:CharacterCounter x:Key="CharacterCounter"/>
+        <SolidColorBrush x:Key ="subsBackgroundBrush" Color ="Black" Opacity="0.5"/>
+    </Window.Resources>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!--MENU-->
+            <RowDefinition Height="0.5*"/> <!--PLAYER-->
+            <RowDefinition Height="Auto"/> <!--SPLITTER ROW 2-->
+            <RowDefinition Height="0.5*"/> <!--DATA GRID-->
+            <RowDefinition Height="Auto"/> <!--SPLITTER ROW 4-->
+            <RowDefinition Height="100" MinHeight="100"/> <!--TEXT-->
+        </Grid.RowDefinitions>
+        <Menu Grid.Row="0">
+            <MenuItem Header="File">
+                <MenuItem Header="Open..." Click="MenuItem_Open"/>
+                <Separator/>
+                <MenuItem Header="Exit..." Click="MenuItem_Exit"/>
+            </MenuItem>
+            <MenuItem Header="Subtitles">
+                <MenuItem Name="MenuOpen"  Header="Open..."/>
+                <MenuItem Name="MenuSave" Header="Save..."/>
+                <MenuItem Name="MenuSaveTranslation" Header="Save Translation..." IsEnabled="{Binding ElementName=TranslationEnable, Path=IsChecked}"/>
+                <Separator/>
+                <MenuItem Name="TranslationEnable" Header="Translation" IsCheckable="True" IsChecked="{Binding ElementName=TranslationCol, Mode=OneWay, UpdateSourceTrigger=PropertyChanged,Converter={StaticResource BooleanToVisibilityConverter}}"/>
+            </MenuItem>
+            <MenuItem Header="Help">
+                <MenuItem Header="About..." Click="MenuItem_About"/>
+            </MenuItem>
+        </Menu>
+        
+        <!--MEDIA PLAYER-->
+        <Grid Grid.Row="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid Grid.Row="0">
+            <Canvas Name="playerCanvas">
+                <Rectangle Fill="Black" 
+                           Width="{Binding ActualWidth, ElementName=playerCanvas}"
+                           Height="{Binding ActualHeight, ElementName=playerCanvas}"
+                           Canvas.ZIndex="0" />
+                <MediaElement Name="videoPlayer" LoadedBehavior="Manual" ScrubbingEnabled="True"
+                              Width="{Binding ActualWidth, ElementName=playerCanvas}"
+                              Height="{Binding ActualHeight, ElementName=playerCanvas}"
+                              HorizontalAlignment="Center" VerticalAlignment="Center"
+                              PreviewMouseWheel="videoPlayer_PreviewMouseWheel"
+                              MediaOpened="videoPlayer_MediaOpened"
+                          PreviewMouseLeftButtonDown="videoPlayer_PreviewMouseLeftButtonDown" Canvas.ZIndex="1"/>
+
+                    <Grid  Width="{Binding ActualWidth, ElementName=playerCanvas}" 
+                       Height="{Binding ActualHeight, ElementName=playerCanvas}"
+                       Canvas.ZIndex="2">
+                        <TextBlock Name="subtitleBlock" HorizontalAlignment="Center" VerticalAlignment="Bottom" Canvas.ZIndex="2"
+                           Padding="5" Foreground="White" TextAlignment="Center"
+                               Background="{StaticResource subsBackgroundBrush}"/>
+                    </Grid>
+                </Canvas>
+            </Grid>
+
+            <Grid Grid.Row="1">
+                <DockPanel HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Height="Auto">
+                
+                    <Button Name="playButton" DockPanel.Dock="Left" Width="30" Height="30" Margin="3" Click="playButton_Click">
+                        <Image Source="Resources/play.png" RenderOptions.BitmapScalingMode="HighQuality"/>
+                    </Button>
+
+                    <Button Name="pauseButton" DockPanel.Dock="Left" Width="30" Height="30" Margin="3" Click="pauseButton_Click">
+                        <Image Source="Resources/pause.png" RenderOptions.BitmapScalingMode="HighQuality"/>
+                    </Button>
+
+                    <Button Name="stopButton" DockPanel.Dock="Left" Width="30" Height="30" Margin="3" Click="stopButton_Click">
+                        <Image Source="Resources/stop.png" RenderOptions.BitmapScalingMode="HighQuality"/>
+                    </Button>
+
+                    <Label Name="timestampLabel" DockPanel.Dock="Left" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14">00:00:00.000</Label>
+
+
+                    <Slider Name="volumeSlider" DockPanel.Dock="Right" Width="70" VerticalAlignment="Center"
+                            Minimum="0" Maximum="1"
+                            IsMoveToPointEnabled="True" AllowDrop="True" 
+                            ValueChanged="volumeSlider_ValueChanged"/>
+
+
+                    <Slider Name="durationSlider" DockPanel.Dock="Left" HorizontalAlignment="Stretch"  VerticalAlignment="Center" 
+                            Minimum="0"  Maximum="1"
+                            IsMoveToPointEnabled="True" AllowDrop="True" 
+                            ValueChanged="durationSlider_ValueChanged"/>
+
+                </DockPanel>
+            </Grid>
+
+        </Grid>
+        
+        <GridSplitter Grid.Row="2" Height="8" HorizontalAlignment="Stretch"/>
+        
+        <Grid Grid.Row="3">
+            <DataGrid  Name="datagrid" ItemsSource="{Binding}" AutoGenerateColumns="False" CanUserAddRows="True" 
+                       InitializingNewItem="datagrid_InitializingNewItem" SelectionChanged="datagrid_SelectionChanged">
+                <DataGrid.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Name="gridAddMenu" Header="Add" Click="gridAddMenu_Click" />
+                        <MenuItem Name="gridAddAfterMenu" Header="Add After" Click="gridAddAfterMenu_Click" />
+                        <MenuItem Name="gridDeleteMenu" Header="Delete" Click="gridDeleteMenu_Click" />
+                    </ContextMenu>
+                </DataGrid.ContextMenu>
+                <DataGrid.Columns>
+                    <DataGridTextColumn x:Name="ShowTime" Header="Show Time" Width="Auto" CanUserSort="False" SortDirection="Ascending" Binding="{Binding ShowTime,Mode=TwoWay, Converter={StaticResource TimeSpanToStringConverter}}"/>
+                    <DataGridTextColumn x:Name="HideTime" Header="Hide Time" Width="Auto" CanUserSort="False" Binding="{Binding HideTime,Mode=TwoWay, Converter={StaticResource TimeSpanToStringConverter}}"/>
+                    <DataGridTextColumn x:Name="Text" Header="Text" Width="0.5*" CanUserSort="False" Binding="{Binding Text,Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    <DataGridTextColumn x:Name="TranslationCol" Width="*" Header="Translation" CanUserSort="False"  Binding="{Binding Translation, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                        Visibility="{Binding Source={x:Reference Name=TranslationEnable}, Path=IsChecked, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Grid>
+
+        <GridSplitter Grid.Row="4" Height="8" HorizontalAlignment="Stretch"/>
+
+        <Grid Grid.Row="5">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="{Binding Source={x:Reference Name=TranslationEnable}, Path=IsChecked, Converter={StaticResource BooleanToWidthConverter}}"/>
+            </Grid.ColumnDefinitions>
+
+            <Grid Grid.Column="0">
+                <GroupBox  Width="200" Height="100">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition/>
+                            <RowDefinition/>
+                            <RowDefinition/>
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition/>
+                            <ColumnDefinition/>
+                        </Grid.ColumnDefinitions>
+
+                        <Label  Grid.Row="0" Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" FontSize="12">Show</Label>
+                        <Label  Grid.Row="1" Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" FontSize="12">Hide</Label>
+                        <Label  Grid.Row="2" Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" FontSize="12">Duration</Label>
+
+                        <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding ElementName=datagrid, Path=SelectedItem.ShowTime,UpdateSourceTrigger=LostFocus, NotifyOnSourceUpdated=True,
+                            Converter={StaticResource TimeSpanToStringConverter}}" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"></TextBox>
+                        <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding ElementName=datagrid, Path=SelectedItem.HideTime, UpdateSourceTrigger=LostFocus,NotifyOnSourceUpdated=True,
+                            Converter={StaticResource TimeSpanToStringConverter}}" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"></TextBox>
+                        <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding ElementName=datagrid, Path=SelectedItem.Duration, UpdateSourceTrigger=LostFocus, NotifyOnSourceUpdated=True,
+                            Converter={StaticResource TimeSpanToStringConverter}}" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"></TextBox>
+                    </Grid>
+                </GroupBox>
+            </Grid>
+
+            <Grid Grid.Column="1">
+                <GroupBox>
+                    <GroupBox.Header>
+                        <TextBlock Text="{Binding ElementName=tBox, Mode=OneWay, Path=Text.Length, StringFormat='Text: {0} characters'}" />
+                    </GroupBox.Header>
+                    <TextBox Name="tBox" Text="{Binding ElementName=datagrid, Path=SelectedItem.Text, Mode=TwoWay, 
+                        NotifyOnSourceUpdated=True, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Center" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"/>
+                </GroupBox>
+            </Grid>
+
+            <Grid Grid.Column="2">
+                <GroupBox Visibility="{Binding Source={x:Reference Name=TranslationEnable}, Path=IsChecked, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <GroupBox.Header>
+                        <TextBlock Text="{Binding ElementName=translationBox, Mode=OneWay, Path=Text.Length, StringFormat='Translation: {0} characters'}" />
+                    </GroupBox.Header>
+                    <TextBox Name="translationBox" Text="{Binding ElementName=datagrid, Path=SelectedItem.Translation, Mode=TwoWay, 
+                        NotifyOnSourceUpdated=True, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Center" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"/>
+                </GroupBox>
+            </Grid>
+        </Grid>
+
+
+
+
+    </Grid>
+</Window>
